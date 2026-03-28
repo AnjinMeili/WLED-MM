@@ -76,6 +76,7 @@ struct PPPixelPusherBase {
   uint16_t artnet_universe;
   uint16_t artnet_channel;
   uint16_t my_port;
+  uint16_t reserved;            // aligns strip_flags to canonical offset
   // strip_flags follow (variable length, one byte per strip, minimum 8)
 };
 
@@ -123,6 +124,26 @@ class PixelPusherUsermod : public Usermod {
 
     static const char _name[];
     static const char _enabled[];
+
+    void stopUdp() {
+      if (udpStarted) {
+        dataUdp.stop();
+        beaconUdp.stop();
+        udpStarted = false;
+      }
+    }
+
+    void startUdp() {
+      stopUdp();
+
+      if (dataUdp.begin(PP_LISTEN_PORT)) {
+        udpStarted = true;
+        buildDiscoveryPacket();
+        DEBUG_PRINTLN(F("PixelPusher: listening on port 5078"));
+      } else {
+        DEBUG_PRINTLN(F("PixelPusher: failed to start UDP listener"));
+      }
+    }
 
     uint16_t getEffectivePixelsPerStrip() {
       if (pixelsPerStrip > 0) return pixelsPerStrip;
@@ -179,6 +200,7 @@ class PixelPusherUsermod : public Usermod {
       base->artnet_universe      = (artnetUniverse >= 0) ? (uint16_t)artnetUniverse : 0xFFFF;
       base->artnet_channel       = (artnetChannel >= 0) ? (uint16_t)artnetChannel : 0xFFFF;
       base->my_port              = PP_LISTEN_PORT;
+      base->reserved             = 0;
 
       offset += sizeof(PPPixelPusherBase);
 
@@ -263,6 +285,12 @@ class PixelPusherUsermod : public Usermod {
             uint8_t stripIndex = ptr[0];
             const uint8_t *pixelData = ptr + 1;
 
+            // Ignore out-of-range strip indices.
+            if (stripIndex >= numStrips) {
+              ptr += stripDataLen;
+              continue;
+            }
+
             // Calculate LED offset for this strip
             uint16_t ledOffset = stripIndex * pps;
             uint16_t totalLeds = strip.getLengthTotal();
@@ -291,26 +319,15 @@ class PixelPusherUsermod : public Usermod {
     PixelPusherUsermod() : Usermod("PixelPusher", false) {}
 
     void setup() override {
-      if (!enabled) return;
       initDone = true;
+      if (!enabled) return;
     }
 
     void connected() override {
       if (!enabled || !initDone) return;
 
       // (Re)start UDP sockets when WiFi connects
-      if (udpStarted) {
-        dataUdp.stop();
-        udpStarted = false;
-      }
-
-      if (dataUdp.begin(PP_LISTEN_PORT)) {
-        udpStarted = true;
-        buildDiscoveryPacket();
-        DEBUG_PRINTLN(F("PixelPusher: listening on port 5078"));
-      } else {
-        DEBUG_PRINTLN(F("PixelPusher: failed to start UDP listener"));
-      }
+      startUdp();
     }
 
     void loop() override {
@@ -363,8 +380,12 @@ class PixelPusherUsermod : public Usermod {
 
       if (artnetUniverse >= 0) {
         JsonArray art = user.createNestedArray(F("PP ArtNet"));
-        String artInfo = F("universe ") + String(artnetUniverse);
-        if (artnetChannel >= 0) artInfo += F(", ch ") + String(artnetChannel);
+        char artInfo[40];
+        if (artnetChannel >= 0) {
+          snprintf(artInfo, sizeof(artInfo), "universe %d, ch %d", (int)artnetUniverse, (int)artnetChannel);
+        } else {
+          snprintf(artInfo, sizeof(artInfo), "universe %d", (int)artnetUniverse);
+        }
         art.add(artInfo);
       }
     }
@@ -381,23 +402,29 @@ class PixelPusherUsermod : public Usermod {
     }
 
     bool readFromConfig(JsonObject& obj) override {
+      bool wasEnabled = enabled;
       bool configComplete = Usermod::readFromConfig(obj);
       JsonObject top = obj[FPSTR(_name)];
       if (top.isNull()) return false;
 
-      getJsonValue(top[F("strips")],        numStrips,         1);
-      getJsonValue(top[F("pixelsPerStrip")], pixelsPerStrip,    0);
-      getJsonValue(top[F("controller")],     controllerOrdinal, 0);
-      getJsonValue(top[F("group")],          groupOrdinal,      0);
-      getJsonValue(top[F("artnetUniverse")], artnetUniverse,    (int16_t)-1);
-      getJsonValue(top[F("artnetChannel")],  artnetChannel,     (int16_t)-1);
+      configComplete &= getJsonValue(top[F("strips")],         numStrips,         1);
+      configComplete &= getJsonValue(top[F("pixelsPerStrip")], pixelsPerStrip,    0);
+      configComplete &= getJsonValue(top[F("controller")],     controllerOrdinal, 0);
+      configComplete &= getJsonValue(top[F("group")],          groupOrdinal,      0);
+      configComplete &= getJsonValue(top[F("artnetUniverse")], artnetUniverse,    (int16_t)-1);
+      configComplete &= getJsonValue(top[F("artnetChannel")],  artnetChannel,     (int16_t)-1);
 
       if (numStrips < 1) numStrips = 1;
       if (numStrips > 128) numStrips = 128;
 
-      // Rebuild discovery packet if config changes at runtime
-      if (initDone && udpStarted) {
-        buildDiscoveryPacket();
+      // Apply runtime enable/config changes without requiring a reboot.
+      if (initDone) {
+        if (!enabled) {
+          stopUdp();
+        } else if (Network.isConnected()) {
+          if (!udpStarted || !wasEnabled) startUdp();
+          else buildDiscoveryPacket();
+        }
       }
 
       return configComplete;

@@ -1,0 +1,92 @@
+{
+  "generated_at_utc": "2026-03-28T16:22:24Z",
+  "repo": {
+    "name": "WLED-PP",
+    "path": "/Users/james/src/moonmodules/WLED-PP",
+    "branch": "pixelpusher",
+    "git_status": "clean"
+  },
+  "toolchain": {
+    "node": "v22.12.0",
+    "npm": "10.9.0",
+    "python3": "Python 3.13.0",
+    "platformio": {
+      "on_path": false,
+      "path": "/Users/james/.platformio/penv/bin/pio",
+      "version": "PlatformIO Core, version 6.1.19"
+    }
+  },
+  "setup": {
+    "ui_build": {
+      "command": "npm run build",
+      "status": "success"
+    },
+    "firmware_build": {
+      "command": "~/.platformio/penv/bin/pio run -e esp32dev_compat",
+      "environment": "esp32dev_compat",
+      "status": "success",
+      "duration": "00:01:01.649",
+      "ram_used_bytes": 79860,
+      "ram_total_bytes": 327680,
+      "ram_pct": 24.4,
+      "flash_used_bytes": 1471693,
+      "flash_total_bytes": 1572864,
+      "flash_pct": 93.6
+    }
+  },
+  "workspace_artifacts": {
+    ".pio_size": "463M",
+    "node_modules_size": "14M"
+  },
+  "repo_scan": {
+    "build_system": "PlatformIO + Node web asset build",
+    "src_dir": "wled00",
+    "data_dir": "wled00/data",
+    "extra_configs": [
+      "platformio_override.ini"
+    ],
+    "devcontainer_post_create": "npm install",
+    "gitpod_bootstrap": "pip3 install -U platformio && platformio run"
+  },
+  "usermods": {
+    "total_dirs": 63,
+    "integrated_in_wled00_usermods_list_cpp": 49,
+    "with_readme": 57,
+    "with_config_hooks": 45,
+    "legacy_cpp_or_ino_style": 11,
+    "no_readme": [
+      "Analog_Clock",
+      "MY9291",
+      "artifx",
+      "buzzer",
+      "pixelpusher",
+      "rotary_encoder_change_effect",
+      "usermod_v2_auto_playlist"
+    ],
+    "not_integrated_in_main_usermods_list": [
+      "Artemis_reciever",
+      "Enclosure_with_OLED_temp_ESP07",
+      "Fix_unreachable_netservices_v2",
+      "JSON_IR_remote",
+      "RelayBlinds",
+      "TTGO-T-Display",
+      "Wemos_D1_mini+Wemos32_mini_shield",
+      "battery_keypad_controller",
+      "mqtt_switch_v2",
+      "photoresistor_sensor_mqtt_v1",
+      "project_cars_shiftlight",
+      "rotary_encoder_change_effect",
+      "stairway_wipe_basic",
+      "word-clock-matrix"
+    ],
+    "notable_dependencies": [
+      "PWM_fan -> Temperature or SHT",
+      "usermod_v2_auto_save -> optional FourLineDisplay",
+      "usermod_v2_rotary_encoder_ui_ALT -> FourLineDisplay",
+      "usermod_v2_games -> optional MPU6050_IMU",
+      "seven_segment_display_reloaded -> optional SN_Photoresistor",
+      "artifx -> AudioReactive UM data",
+      "usermod_v2_auto_playlist -> AudioReactive UM data"
+    ]
+  }
+}
